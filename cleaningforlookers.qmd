@@ -1,0 +1,417 @@
+---
+title: UCI Adult Income Dataset - Exploratory and Descriptive Analysis
+author:
+  - name: "consolee Musanabera"
+    affiliation: "Junior Data Analyst"
+
+date: "2025-06-26"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    code-fold: true
+    code-tools: true
+    code-block-bg: true
+    code-block-border-left: "#31BAE9"
+    number-sections: true
+    number-tables: true
+    toc: true
+    toc-location: left
+    toc-title: Contents
+jupyter: python3
+---
+
+In this notebook, we begin by exploring the Government Product Sales dataset (2013–2014), which includes sales information segmented by product, geography, pricing, and discounts. This initial step aims to load the dataset, inspect the first few rows, and establish familiarity with the data structure. The dataset will later be used for descriptive and visual analysis of sales trends across products and countries.
+
+
+```{python}
+import os
+import pandas as pd
+import numpy as np 
+
+# Example for Windows
+gov_df = pd.read_csv(r"C:\Users\user\Downloads\Copy of International_Government_Product_Sales_Dataset_(2013–2014)(1).csv" )  # Note the "r" before the string
+```
+
+We display the first 10 rows of the dataset to inspect column names, data types, and any missing values. Key variables include Segment, Country, Product, Units Sold, Sale Price, COGS, Profit, and Date.
+
+```{python}
+
+gov_df.head(10)
+```
+
+## Dataset Dimensions – Rows and Columns
+To understand the overall size of the dataset, we use the .shape attribute. This is an essential first step in exploratory data analysis, as it tells us how many observations (rows) and features (columns) we are working with. Knowing the dataset’s dimensions helps us plan data cleaning, transformation, and visualization strategies appropriately.
+
+```{python}
+#| jupyter: {source_hidden: true}
+gov_df.shape
+```
+
+The dataset contains 700 rows and 16 columns.
+
+Each row likely represents a unique record of a government product sale (e.g., by country, product, or date).
+
+The 16 columns include key attributes such as product information, financial metrics (e.g., sale price, profit), and time indicators.
+
+```{python}
+gov_df.info()
+```
+
+```{python}
+gov_df.describe()
+```
+
+## Column Names – Understanding Dataset Structure
+To better understand the content and structure of our dataset, we examine its column names using the **.columns** attribute. This reveals what types of variables we’re working with — including identifiers, product and financial details, and temporal information.
+
+```{python}
+#| scrolled: true
+gov_df.columns
+```
+
+```{python}
+np.unique(gov_df.Segment.to_list())
+```
+
+```{python}
+np.unique(gov_df.Country.to_list())
+```
+
+```{python}
+np.unique(gov_df.Product.to_list())
+```
+
+```{python}
+np.unique(gov_df['Discount Band'].to_list())
+```
+
+## Checking for Missing Values
+Before proceeding with analysis, it’s crucial to identify any missing data. This helps determine whether imputation, exclusion, or transformation is needed. Using .isnull().sum() allows us to detect how many null (NaN) values exist in each column of the dataset.
+
+```{python}
+gov_df.isnull().sum()
+```
+
+All **columns** except Discount Band are fully complete, meaning they have zero missing values.
+
+The Discount Band column has 53 missing values, which accounts for about 7.6% of the total dataset (53 out of 700).
+
+## Handling Missing Values in the Discount Band Column
+After identifying missing values in the Discount Band column, we now resolve this issue to ensure smooth analysis. Rather than dropping rows or estimating values, we use a simple yet effective strategy: filling all missing entries with the placeholder 'Unknown'. This preserves data integrity while clearly marking unclassified discount bands.
+
+We then re-check for any remaining missing values in the dataset.
+
+```{python}
+gov_df['Discount Band'] = gov_df['Discount Band'].fillna('Unknown')
+```
+
+```{python}
+#| scrolled: true
+gov_df.isnull().sum()
+```
+
+The Discount Band column is now fully populated — all 53 previously missing values have been replaced with the label 'Unknown'.
+
+The dataset is now completely free of null values across all 16 columns.
+
+Checking for Duplicate Records
+An important part of data cleaning is verifying that there are no duplicate rows, which can distort statistics and visualizations. Using **.duplicated().sum()**, we check how many rows in the dataset are exact copies of others.
+
+```{python}
+gov_df.duplicated().sum()
+```
+
+The dataset contains zero duplicated rows, meaning each record is unique.
+
+This indicates that the data source is reliable and hasn’t introduced repeated entries during collection or consolidation.
+
+```{python}
+gov_df.shape
+```
+
+```{python}
+gov_df.columns
+```
+
+```{python}
+categorical_cols = gov_df.columns[gov_df.dtypes == object]
+for col in categorical_cols:
+    gov_df.loc[:, col] = gov_df[col].str.strip().str.lower()
+```
+
+```{python}
+gov_df
+```
+
+```{python}
+gov_df.isnull().sum()
+```
+
+```{python}
+gov_df.shape
+```
+
+```{python}
+#gov_df.to_csv("C:/Users/user/Desktop/tekher/looker studio/CSV/gov_cleaned.csv", index=False)
+```
+
+```{python}
+##gov_df1 = pd.read_csv(r"C:\Users\user\Desktop\tekher\looker studio\CSV\gov_cleaned.csv")
+##gov_df1
+```
+
+```{python}
+gov_df.describe(include='object')
+```
+
+```{python}
+gov_df['Segment'].value_counts(normalize=True)
+```
+
+```{python}
+gov_df['Country'].value_counts(normalize=True)
+```
+
+```{python}
+gov_df['Product'].value_counts(normalize=True)
+```
+
+```{python}
+gov_df_profit = gov_df.groupby('Profit').size().reset_index(name='total')
+gov_df_profit
+```
+
+```{python}
+import plotly.express as px
+import matplotlib.pyplot as plt
+```
+
+```{python}
+print(gov_df.columns.tolist())
+```
+
+```{python}
+gov_df.columns = gov_df.columns.str.strip()  # remove spaces
+```
+
+```{python}
+gov_df
+```
+
+## Time Series Analysis – Sales and Profit Over Time
+To explore trends and seasonality in financial performance, we generate a time series line chart showing the evolution of Sales and Profit over time. By grouping data by the Date field and summing the Sales and Profit for each date, we can visualize monthly fluctuations, identify seasonal patterns, and detect any potential surges or drops in performance.
+
+```{python}
+
+
+# Convert date column to datetime format (if not already)
+gov_df['Date'] = pd.to_datetime(gov_df['Date'])
+
+time_group = gov_df.groupby('Date')[['Sales', 'Profit']].sum().reset_index()
+
+plt.figure(figsize=(12, 6))
+plt.plot(time_group['Date'], time_group['Sales'], label='Sales')
+plt.plot(time_group['Date'], time_group['Profit'], label='Profit')
+plt.title('Sales and Profit Over Time')
+plt.xlabel('Date')
+plt.ylabel('Amount')
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+.Sales show clear monthly variations, with several sharp peaks—particularly around October 2014 and December 2014, indicating significant sales spikes during those months.
+
+.Profit also follows a fluctuating trend but remains much lower in magnitude compared to sales, suggesting:
+
+.High operating costs or aggressive discounting may be narrowing margins.
+
+.Potential inefficiencies in cost management or differences in profitability across product categories or countries.
+
+.There is no steady upward or downward trend across the time period; instead, the performance is cyclical or influenced by one-time events.
+
+.A closer analysis of these spikes could help identify promotions, procurement strategies, or external factors driving revenue during peak months.
+
+.This visualization is essential for understanding seasonal dynamics and preparing for periods of high or low performance in future forecasting.
+
+
+
+**Data Aggregation and Sorting:** The first part of the code takes a DataFrame (presumably named gov_df) and groups all its records by the 'Country' column. For each country, it then calculates the total 'Sales' and total 'Profit'. Finally, it sorts these aggregated results, arranging the countries from the highest total sales to the lowest. This step prepares the data in a way that makes it easy to compare sales and profit across different nations.
+
+**Chart Generation and Display:** The second part of the code takes the prepared (aggregated and sorted) data and creates a bar chart. It sets the size of the chart, assigns a clear title ("Sales and Profit by Country"), labels the vertical axis as 'Amount', and then ensures all elements of the plot are neatly arranged before finally displaying the chart to the user.
+
+```{python}
+#| scrolled: true
+country_group = gov_df.groupby('Country')[['Sales', 'Profit']].sum().sort_values(by='Sales', ascending=False)
+
+country_group.plot(kind='bar', figsize=(12, 6), title='Sales and Profit by Country')
+plt.ylabel('Amount')
+plt.tight_layout()
+plt.show()
+```
+
+The bar chart, generated by the code, provides clear insights into the sales and profit performance across five different countries:
+
+Sales Dominance: The United States of America and Canada are the clear leaders in sales, each nearing $25 million. This indicates a very strong market presence and high revenue generation in these two countries. France follows, also with significant sales.
+
+Profitability Varies Significantly: While the top sales countries also show positive profits, the most striking insight comes from Germany, which, despite having substantial sales (ranking fourth overall), registers a negative profit. This is a critical observation, suggesting that even with high revenue, Germany is currently operating at a loss, which could be due to high operational costs, inefficient management, or aggressive pricing strategies.
+
+Mexico's Modest Contribution: Mexico has the lowest sales among the five countries and a correspondingly lower, but positive, profit. This suggests a smaller market presence or less developed operations compared to the other nations.
+
+Sales vs. Profit Disconnect: The chart highlights that high sales do not automatically guarantee high or even positive profits. Germany's case is a prime example of this disconnect, where strong revenue is undermined by poor profitability. This emphasizes the importance of analyzing both sales and profit figures to understand true business performance.
+
+**Data Aggregation and Sorting:** The first part of the code takes a DataFrame (likely named gov_df), and it groups all its records based on the 'Product' column. For each unique product, it then calculates the total 'Sales' and total 'Profit'. After summing these values, it sorts the results so that products with the highest total sales appear first, followed by those with lower sales. This step effectively organizes the data to allow for easy comparison of performance across different products.
+
+**Chart Generation and Display:** The second part of the code takes this organized product data and creates a bar chart. It sets the size of the chart for good visibility (12 inches by 6 inches), gives it a clear title ("Sales and Profit by Product"), labels the vertical axis as 'Amount' (representing sales and profit values), and then optimizes the layout to prevent any labels or titles from overlapping. Finally, it displays the generated bar chart.
+
+```{python}
+product_group = gov_df.groupby('Product')[['Sales', 'Profit']].sum().sort_values(by='Sales', ascending=False)
+
+product_group.plot(kind='bar', figsize=(12, 6), title='Sales and Profit by Product')
+plt.ylabel('Amount')
+plt.tight_layout()
+plt.show()
+```
+
+The bar chart "Sales and Profit by Product" provides several key insights into the performance of different products:
+
+.Paseo is the Dominant Product: "Paseo" stands out as the top-performing product by a significant margin, generating over $30 million in sales. It also contributes the highest absolute profit, clearly being the most crucial product for revenue.
+
+.Top 4 Products for Sales: "Paseo," "VTT," "Velo," and "Amarilla" are the leading products in terms of sales, all generating substantial revenue.
+
+.Consistent Profit Margins: For most products, including "Paseo," "VTT," "Velo," "Amarilla," and "Montana," the profit, while considerably smaller than sales, appears to maintain a somewhat consistent positive ratio to sales. This suggests that these products are generally profitable.
+
+.Lower Sales for Montana and Carreteria: "Montana" and "Carretera" have comparatively lower sales than the other products, with "Carretera" having the lowest sales among all shown products.
+
+.Profitability Across Products: All the products displayed in the chart show positive profit, indicating that none of them are operating at a loss. While the profit amounts vary, they generally follow the trend of sales, meaning higher sales usually correspond to higher absolute profit.
+
+.Potential for Optimization: While all products are profitable, the chart clearly identifies "Paseo" as the star product. Businesses might consider strategies to further leverage "Paseo's" success or analyze if the profit margins of other products like "Carretera" can be improved.````m
+
+**Data Aggregation and Preparation:** The code first groups the data (from gov_df) by 'Product' and calculates the sum of 'COGS' and 'Profit' for each. To ensure a clear visual hierarchy in the chart, it then creates a temporary 'total' column by adding COGS and Profit for each product. This 'total' is used to sort the products from highest combined COGS and Profit to lowest, before the temporary 'total' column is dropped. This preparation ensures the most impactful products are shown first in the chart.
+
+**Stacked Bar Chart Generation:** Finally, the code generates a stacked bar chart. This type of chart is ideal because it allows for the visualization of two components (COGS and Profit) contributing to a single total (which is implicitly Sales or Revenue). It sets the chart's size, applies a descriptive title, labels the axes, rotates the product names for readability, adds a legend to distinguish COGS from Profit, and optimizes the layout before displaying the chart.
+
+```{python}
+#| scrolled: true
+# Group by product and sum profit and COGS
+stacked_data = gov_df.groupby('Product')[['COGS', 'Profit']].sum()
+
+# Sort by total (COGS + profit) for better visual
+stacked_data['total'] = stacked_data['COGS'] + stacked_data['Profit']
+stacked_data = stacked_data.sort_values(by='total', ascending=False)
+stacked_data = stacked_data.drop(columns='total')
+
+# Plot stacked bar chart
+stacked_data.plot(kind='bar', stacked=True, figsize=(14, 6), color=['#1f77b4', '#2ca02c'])
+
+plt.title('COGS and Profit by Product (Stacked)')
+plt.xlabel('Product')
+plt.ylabel('Amount')
+plt.xticks(rotation=45, ha='right')
+plt.legend(title='Metric')
+plt.tight_layout()
+plt.show()
+```
+
+The stacked bar chart "COGS and Profit by Product (Stacked)" offers the following key insights:
+
+Paseo's Dominance: "Paseo" is clearly the product with the highest overall contribution (COGS + Profit), indicating it has the largest sales volume. Both its COGS (the larger blue portion) and profit (the green portion on top) are significantly higher than other products.
+
+VTT and Velo are Strong Contributors: "VTT" and "Velo" follow "Paseo" as the next highest contributors, showing substantial COGS and healthy profit margins.
+
+Consistent Profitability Across Products: For all products displayed, there is a visible green segment on top of the blue COGS segment, which indicates that all products are profitable. None of them show a negative profit, which is a positive sign for the business.
+
+Relationship Between COGS and Profit: The chart visually represents the proportion of COGS and Profit for each product. While COGS (the blue part) makes up the majority of the total for all products, the consistent presence of the green 'Profit' segment on top is a healthy indicator.
+
+Carretera's Smaller Scale: "Carretera" has the lowest total contribution (COGS + Profit), suggesting it has the lowest sales volume among the listed products. However, it still maintains a positive profit margin.
+
+Efficiency and Cost Management: The chart implicitly shows the efficiency of each product. Products with a larger green portion relative to their total bar might be more profitable per unit of sales, even if their overall sales volume is lower. Conversely, even with high sales, a very thin green line might suggest lower profit margins. "Paseo" appears to have a good balance of high sales volume and a healthy profit margin.
+
+
+**Data Aggregation:** The first part of the code takes the DataFrame (presumably gov_df) and groups all its records based on the 'Segment' column. For each unique customer segment (e.g., "government," "enterprise," "small business"), it calculates the sum of all 'Sales' associated with that segment. This step aggregates the raw sales data into segment-wise totals.
+
+**Pie Chart Generation:** The second part of the code then takes these aggregated sales totals and generates a pie chart. A pie chart is particularly suitable here because it visually represents how each segment contributes to the total sales as a proportion. The autopct='%1.1f%%' argument formats the percentages to one decimal place directly on the chart slices, making it easy to read the exact contribution of each segment. It also sets the chart size and title, and explicitly removes the y-axis label (which is not needed for a pie chart) before displaying the plot.
+
+```{python}
+#| scrolled: true
+segment_sales = gov_df.groupby('Segment')['Sales'].sum()
+
+segment_sales.plot(kind='pie', autopct='%1.1f%%', figsize=(8, 8), title='Segment by Sales')
+plt.ylabel('')  # Remove y-label
+plt.show()
+```
+
+The pie chart "Segment by Sales" provides clear insights into the distribution of sales across different customer segments:
+
+Government is the Largest Segment: The "government" segment accounts for the largest share of sales at 44.2%. This indicates that government contracts or sales to governmental entities are the primary revenue driver for the business.
+
+Small Business is a Significant Contributor: The "small business" segment is the second largest, contributing 35.7% of the total sales. Combined with government, these two segments make up nearly 80% of the total sales.
+
+Enterprise Plays a Notable Role: The "enterprise" segment contributes 16.5% of sales, making it the third most significant segment.
+
+Midmarket and Channel Partners are Smaller Segments: "Midmarket" accounts for a small 2.0% of sales, and "channel partners" represent the smallest slice at 1.5%. These segments contribute very little to the overall sales revenue compared to the others.
+
+Focus Areas for Growth: The chart clearly highlights where the sales efforts are currently concentrated and successful (government, small business, enterprise). For growth, the company might consider further investment in these dominant segments or strategically evaluate if it's worthwhile to try and grow the smaller "midmarket" and "channel partners" segments, given their current minimal contribution.
+
+**Profit Margin Calculation and Preparation:** The first part of the code aggregates the 'Sales' and 'Profit' data from the gov_df DataFrame for each 'Country'. It then calculates the 'Profit_margin' for each country by dividing the total 'Profit' by the total 'Sales'. This is a crucial step as profit margin provides a percentage indicator of how much profit is made for every dollar of sales, offering a different perspective than just raw profit numbers. Finally, it sorts these countries by their calculated profit margin in descending order, so the most profitable countries appear first.
+
+**Bar Chart Generation:** The second part of the code then takes these calculated and sorted profit margins and generates a bar chart. This type of chart is effective for comparing the profit margins across different countries. It sets the size of the chart, applies a clear title ("Profit Margin by Country"), labels the y-axis specifically as 'Profit Margin (Profit ÷ Sales)' to indicate what the values represent, labels the x-axis as 'Country', rotates the country names for better readability, and optimizes the plot layout before displaying it.
+
+```{python}
+# Calculate profit margin by country
+country_margin = gov_df.groupby('Country')[['Sales', 'Profit']].sum()
+country_margin['Profit_margin'] = country_margin['Profit'] / country_margin['Sales']
+country_margin = country_margin.sort_values(by='Profit_margin', ascending=False)
+```
+
+```{python}
+# Plot
+plt.figure(figsize=(12, 6))
+country_margin['Profit_margin'].plot(kind='bar', color='skyblue')
+plt.title('Profit Margin by Country')
+plt.ylabel('Profit Margin (Profit ÷ Sales)')
+plt.xlabel('Country')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.show()
+```
+
+The bar chart "Profit Margin by Country" offers several key insights into the efficiency of operations in different countries:
+
+Germany Leads in Profit Margin: Surprisingly, Germany has the highest profit margin among the listed countries, at approximately 15.7%. This contrasts with previous charts where Germany showed negative absolute profit. This indicates that while Germany might have lower sales volumes or specific high costs that lead to overall losses, the percentage of profit generated from each sale is relatively high. This suggests good cost control or effective pricing strategies at a per-unit level.
+
+France and Canada Follow Closely: France and Canada have very similar and strong profit margins, just slightly below Germany's, around 15.5% and 14.2% respectively.
+
+Mexico and United States of America Have Lower Margins: Mexico and the United States of America have the lowest profit margins among the group, around 13.8% and 12.0% respectively.
+
+Contrasting Insights with Absolute Profit/Sales: This chart provides a crucial proportional view that might contradict conclusions drawn from absolute sales or profit figures alone. For example, while the United States might have the highest total sales (as seen in earlier charts), its profit margin is the lowest. This implies that while the volume of business is high, the efficiency of converting sales into profit is comparatively lower than in other countries.
+
+Efficiency vs. Volume: The chart highlights the difference between sales volume and operational efficiency. Countries like Germany, despite potential issues with overall sales volume or specific high costs leading to negative absolute profit (as seen in a previous chart), demonstrate strong efficiency in converting revenue into profit. Conversely, high-volume countries like the USA might need to scrutinize their cost structures or pricing strategies to improve their profit margins.
+
+**Average Discount Calculation and Preparation:** The first part of the code groups the data (from gov_df) by the 'Segment' column. For each customer segment, it calculates the mean (average) of the 'Discounts' given. This provides an understanding of how much discount is typically offered to each type of customer. The results are then sorted in descending order, so the segments with the highest average discounts appear first.
+
+**Bar Chart Generation:** The second part of the code takes these calculated and sorted average discounts and generates a bar chart. A bar chart is suitable for comparing these average values across different segments. It sets the size of the plot, gives it a descriptive title ("Average Discount by Segment"), labels the y-axis as 'Average Discount', and then ensures the layout is tight before displaying the chart.
+
+```{python}
+avg_discount = gov_df.groupby('Segment')['Discounts'].mean().sort_values(ascending=False)
+
+avg_discount.plot(kind='bar', figsize=(8, 5), color='orange')
+plt.title('Average Discount by Segment')
+plt.ylabel('Average Discount')
+plt.tight_layout()
+plt.show()
+```
+
+The bar chart "Average Discount by Segment" provides clear insights into the discounting strategies applied to different customer groups:
+
+Small Business Receives the Highest Average Discount: The "small business" segment receives by far the highest average discount, at approximately $35,000. This is significantly higher than any other segment. This could be a deliberate strategy to attract or retain small business clients, or it might indicate larger deal sizes for this segment with associated larger discounts.
+
+Enterprise and Government Discounts are Moderate: "Enterprise" and "government" segments receive moderate average discounts, around $14,500 and $13,000 respectively. While substantial, they are much lower than those offered to small businesses.
+
+Midmarket and Channel Partners Receive Minimal Discounts: The "midmarket" and "channel partners" segments receive very low average discounts, with "midmarket" around $2,000 and "channel partners" even lower, under $1,000. This suggests that discounts are not a primary sales driver for these segments, or perhaps these segments involve smaller transactions where large discounts are less feasible.
+
+Targeted Discounting Strategy: The stark differences in average discounts suggest a highly targeted discounting strategy. The company is willing to offer significant discounts to "small business" clients, possibly to secure their business in a competitive market or due to the nature of the deals.
+
+Impact on Profitability: While not directly shown, higher average discounts (especially for "small business") could impact the overall profit margin from those segments. It would be valuable to cross-reference this with profit data by segment to understand if these high discounts are justified by increased volume or if they are eroding profitability.
+
